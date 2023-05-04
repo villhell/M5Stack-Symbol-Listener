@@ -7,7 +7,7 @@
 #include <ArduinoJson.h>
 
 #define USE_SERIAL Serial1
-#define ADDRESS "MONITORING_ADDRESS"
+#define ADDRESS "TD6V5T5MOPAUO74J25LH5LCZZIINUFJNPGWYM7Y"
 WebSocketsClient webSocket;
 String uid;
 
