@@ -1,15 +1,31 @@
 #include <Arduino.h>
 #include <M5Core2.h>
+#include <driver/i2s.h>
 
 #include <SD.h>
 #include <WiFiClientSecure.h>
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 
+#include "AudioFileSourceSD.h"
+#include "AudioFileSourceID3.h"
+#include "AudioGeneratorWAV.h"
+#include "AudioOutputI2S.h"
+
+AudioGeneratorWAV *wav;
+AudioFileSourceSD *file;
+AudioOutputI2S *out;
+AudioFileSourceID3 *id3;
+
+#define OUTPUT_GAIN 50
+
 #define USE_SERIAL Serial1
 #define ADDRESS "TD6V5T5MOPAUO74J25LH5LCZZIINUFJNPGWYM7Y"
 WebSocketsClient webSocket;
 String uid;
+
+String symbolImage = "/images/symbol.png";
+String symbolWhiteImage = "/images/symbol-white.png";
 
 /**
  * @brief 画面初期化
@@ -35,6 +51,22 @@ void hexdump(const void *mem, uint32_t len, uint8_t cols = 16) {
 		src++;
 	}
 	USE_SERIAL.printf("\n");
+}
+
+/**
+ * @brief Wav再生
+*/
+void playWav(char *filename){
+  file = new AudioFileSourceSD(filename);
+  out = new AudioOutputI2S(0, 0);
+  out->SetPinout(12, 0, 2);
+  out->SetOutputModeMono(true);
+  out->SetGain((float)OUTPUT_GAIN/100.0);
+  wav = new AudioGeneratorWAV();
+  wav->begin(file, out);
+  while(wav->isRunning()) {
+    if (!wav->loop()) wav->stop();
+  }
 }
 
 /**
@@ -88,10 +120,18 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
           subscribeComfirmed(uid);
 
         } else{
-          M5.Lcd.println(json_payload["topic"].as<String>());
-          M5.Lcd.println(json_payload["data"]["meta"]["hash"].as<String>());
+          M5.Lcd.clear(BLACK);
+          if(json_payload["topic"].as<String>() == "unconfirmedAdded/" + (String)ADDRESS){
+            M5.Lcd.drawPngFile(SD, symbolWhiteImage.c_str(), 40, 0);
+            playWav("/sounds/ding.wav");
+            M5.Lcd.println(json_payload["topic"].as<String>());
+          } else if (json_payload["topic"].as<String>() == "confirmedAdded/" + (String)ADDRESS)
+          {
+            M5.Lcd.drawPngFile(SD, symbolImage.c_str(), 40, 0);
+            playWav("/sounds/ding2.wav");
+            M5.Lcd.println(json_payload["data"]["meta"]["hash"].as<String>());
+          }
         }
-        
       }
 			break;
     }
@@ -120,13 +160,19 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
 void setup() {
   M5.begin();
-
+  M5.Axp.SetSpkEnable(true);
+  M5.Lcd.fillScreen(BLACK);
+  M5.Lcd.setCursor(20, 100);
+  M5.Lcd.setTextColor(WHITE);
+  M5.Lcd.setTextSize(3);
+  M5.Lcd.println("Symbol Listener!");
+  delay(2000);
   // 画面初期化
   initScreen();
 
   // 1000ms待つ
   delay(1000);
-  
+
   // SDカード読込
   File f = SD.open("/wifi.txt", FILE_READ);
   
@@ -187,4 +233,23 @@ void setup() {
 
 void loop() {
   webSocket.loop();
+  M5.update();
+  if(M5.BtnA.wasPressed()){
+    initScreen();
+    M5.Lcd.drawPngFile(SD, symbolWhiteImage.c_str(), 40, 0);
+    playWav("/sounds/ding.wav");
+    M5.Lcd.println("ding.wav");
+  }
+  if(M5.BtnB.wasPressed()){
+    initScreen();
+    M5.Lcd.drawPngFile(SD, symbolImage.c_str(), 40, 0);
+    playWav("/sounds/ding2.wav");
+    M5.Lcd.println("ding2.wav");
+  }
+  if(M5.BtnC.wasPressed()){
+    playWav("/nc215389.wav");
+    M5.Lcd.println("nc215389.wav");
+  }
+  Serial.printf("MP3 done\n");
+  delay(10);
 }
