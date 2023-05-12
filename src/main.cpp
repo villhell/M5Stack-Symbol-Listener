@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <M5Core2.h>
-#include <driver/i2s.h>
 
 #include <SD.h>
 #include <WiFiClientSecure.h>
@@ -158,19 +157,27 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 	}
 }
 
-void setup() {
-  M5.begin();
-  M5.Axp.SetSpkEnable(true);
+/**
+ * @brief タイトル表示用画面初期化
+*/
+void showTitle(char *title){
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setCursor(20, 100);
   M5.Lcd.setTextColor(WHITE);
   M5.Lcd.setTextSize(3);
-  M5.Lcd.println("Symbol Listener!");
+  M5.Lcd.println(title);
+}
+
+void setup() {
+  M5.begin();
+  M5.Axp.SetSpkEnable(true);
+  
+  // タイトル表示
+  showTitle("Symbol Listener!");
   delay(2000);
+  
   // 画面初期化
   initScreen();
-
-  // 1000ms待つ
   delay(1000);
 
   // SDカード読込
@@ -234,6 +241,7 @@ void setup() {
 void loop() {
   webSocket.loop();
   M5.update();
+
   if(M5.BtnA.wasPressed()){
     initScreen();
     M5.Lcd.drawPngFile(SD, symbolWhiteImage.c_str(), 40, 0);
@@ -250,6 +258,6 @@ void loop() {
     playWav("/nc215389.wav");
     M5.Lcd.println("nc215389.wav");
   }
-  Serial.printf("MP3 done\n");
+  Serial.printf("WAV done\n");
   delay(10);
 }
